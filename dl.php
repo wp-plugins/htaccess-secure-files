@@ -21,15 +21,15 @@ if ($wp_load == '') {
 require($wp_load);
 
 // Ensure the plugin is initialized properly
-global $hsf_roles, $hsf_capabilities, $current_user;
-if (!isset($current_user) || !isset($hsf_roles) || !isset($hsf_capabilities)) {
+global $hsf_allowed_roles, $hsf_allowed_capabilities, $hsf_allowed_ips, $current_user;
+if (!isset($current_user) || !isset($hsf_allowed_roles) || !isset($hsf_allowed_capabilities) || !isset($hsf_allowed_ips)) {
 	header('Status: 500 Internal Server Error', true, 500);
 	echo ('Error 500: Htaccess Secure Files plugin error (possibly deactivated)');
 	hsf_error('configuration error - missing global variables');
 	exit();
 }
 
-if (!is_array($hsf_roles) || !is_array($hsf_capabilities) || !is_object($current_user)) {
+if (!is_array($hsf_allowed_roles) || !is_array($hsf_allowed_capabilities) || !is_array($hsf_allowed_ips) || !is_object($current_user)) {
 	header('Status: 500 Internal Server Error', true, 500);
 	echo ('Error 500: Htaccess Secure Files plugin configuration error');
 	hsf_error('configuration error');
@@ -39,15 +39,20 @@ if (!is_array($hsf_roles) || !is_array($hsf_capabilities) || !is_object($current
 // Can the visitor view/download the file?
 $can_view = false;
 
+// Check the IP address 
+if (count($hsf_allowed_ips) && in_array($_SERVER['REMOTE_ADDR'], $hsf_allowed_ips)) {
+	$can_view = true;
+}
+
 // Check the roles
-if (count($hsf_roles) && isset($current_user->roles) && is_array($current_user->roles) && count($current_user->roles) && count(array_intersect($hsf_roles, $current_user->roles))) {
+if (!$can_view && count($hsf_allowed_roles) && isset($current_user->roles) && is_array($current_user->roles) && count($current_user->roles) && count(array_intersect($hsf_allowed_roles, $current_user->roles))) {
 	$can_view = true;
 }
 
 // Check the capabilities
-if (!$can_view && count($hsf_capabilities) && isset($current_user->allcaps) && is_array($current_user->allcaps) && count($current_user->allcaps)) {
+if (!$can_view && count($hsf_allowed_capabilities) && isset($current_user->allcaps) && is_array($current_user->allcaps) && count($current_user->allcaps)) {
 	foreach ($current_user->allcaps as $cap => $on) {
-		if ($on && in_array($cap, $hsf_capabilities)) {
+		if ($on && in_array($cap, $hsf_allowed_capabilities)) {
 			$can_view = true; 
 			break;	
 		}

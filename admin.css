@@ -26,8 +26,16 @@
 	border-top: 1px solid #21759B;
 	border-right: 1px solid #21759B;
 }
+.hsf_tab_content thead th { white-space:nowrap; }
 .hsf_tab_content .check-column { text-align: center; }
 .hsf_tab_content tbody td { padding-top: 7px; }
+.hsf_tab_content tbody td.hsf_button_cell { padding-top: 2px; }
+.hsf_tab_content td#hsf_add_ip_label { 
+	vertical-align:middle;
+	white-space: nowrap;
+	width: 10em;
+}
+
 .hsf_toggle {
 	color: #21759B;	
 	font-size: 13px !important;
@@ -46,3 +54,5 @@
 	margin-bottom: 4px;
 	margin-left: 5px;
 }
+/* Media management list table */
+.fixed .column-hsf_secured { width: 10%; }

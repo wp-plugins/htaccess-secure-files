@@ -25,9 +25,13 @@ Author URI: http://isaacchapman.com/
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+// If the existing settings are to be used and shouldn't be changed through the admin interface HSF_DISPLAY_ADMIN should be defined as false in the wp-config.php file. For example:
+// define('HSF_DISPLAY_ADMIN', false); 
+
 // The default roles and capabilities needed to access secured content
 define('HSF_DEFAULT_ALLOWED_ROLES', 'subscriber,contributor,author,editor,administrator');
 define('HSF_DEFAULT_ALLOWED_CAPABILITIES', '');
+define('HSF_DEFAULT_ALLOWED_IP', '');
 
 // .htaccess file delimiters (DO NOT USE MULTIPLE ADJACENT SPACE CHARACTERS IF THESE ARE MODIFIED)
 define('HSF_HTACCESS_NOTICE','#### DO NOT EDIT BELOW (Htaccess Secure Files plugin created content) ####');
@@ -37,6 +41,7 @@ define('HSF_HTACCESS_ENTRIES_END', '#### End of Htaccess Secure Files plugin cre
 // Other constants
 define('HSF_ALLOWED_ROLES', 'hsf_allowed_roles');
 define('HSF_ALLOWED_CAPABILITIES', 'hsf_allowed_capabilities');
+define('HSF_ALLOWED_IPS', 'hsf_allowed_ips');
 define('HSF_POST_META_KEY', '_hsf_secured');
 define('HSF_SECURED_LABEL', 'Secured File');
 define('HSF_REQUIRED_ADMIN_CAPABILITY', 'manage_options');
@@ -65,19 +70,26 @@ function hsf_activate() {
 /**** Plugin init ****/
 add_action('init', 'hsf_init');
 function hsf_init() {
-	global $hsf_roles, $hsf_capabilities;
-	if (!($hsf_roles = get_option(HSF_ALLOWED_ROLES))) {
-		$hsf_roles = explode(',', HSF_DEFAULT_ALLOWED_ROLES);
-		if(count($hsf_roles) == 1 && $hsf_roles[0] == '') { $hsf_roles = array(); }
+	global $hsf_allowed_roles, $hsf_allowed_capabilities, $hsf_allowed_ips;
+	if (!($hsf_allowed_roles = get_option(HSF_ALLOWED_ROLES))) {
+		$hsf_allowed_roles = explode(',', HSF_DEFAULT_ALLOWED_ROLES);
+		if(count($hsf_allowed_roles) == 1 && $hsf_allowed_roles[0] == '') { $hsf_allowed_roles = array(); }
 	}
-	if (!($hsf_capabilities = get_option(HSF_ALLOWED_CAPABILITIES))) {
-		$hsf_capabilities = explode(',', HSF_DEFAULT_ALLOWED_CAPABILITIES);	
-		if(count($hsf_capabilities) == 1 && $hsf_capabilities[0] == '') { $hsf_capabilities = array(); }
+	if (!($hsf_allowed_capabilities = get_option(HSF_ALLOWED_CAPABILITIES))) {
+		$hsf_allowed_capabilities = explode(',', HSF_DEFAULT_ALLOWED_CAPABILITIES);	
+		if(count($hsf_allowed_capabilities) == 1 && $hsf_allowed_capabilities[0] == '') { $hsf_allowed_capabilities = array(); }
+	}
+	if (!($hsf_allowed_ips = get_option(HSF_IP_ALLOWED))) {
+		$hsf_allowed_ips = explode(',', HSF_DEFAULT_ALLOWED_IP);	
+		if(count($hsf_allowed_ips) == 1 && $hsf_allowed_ips[0] == '') { $hsf_allowed_ips = array(); }
 	}
 }
 
 /**** Admin screen ****/
-add_action('admin_menu', 'hsf_admin_menu');
+// Should the admin functionality be loaded?
+if (!defined('HSF_DISPLAY_ADMIN') || HSF_DISPLAY_ADMIN == true) {
+	add_action('admin_menu', 'hsf_admin_menu');
+}
 function hsf_admin_menu() {
 	add_submenu_page('options-general.php', 'Secure Files', 'Secure Files', HSF_REQUIRED_ADMIN_CAPABILITY, 'hsf-settings', 'hsf_admin_screen');
 }
@@ -93,7 +105,7 @@ function hsf_admin_screen() {
 		wp_die( __('You do not have sufficient permissions to access this page.') );
 	}
 	
-	global $hsf_roles, $hsf_capabilities, $wp_roles;
+	global $hsf_allowed_roles, $hsf_allowed_capabilities, $hsf_allowed_ips, $wp_roles;
 	
 	// Create array of capabilities
 	$all_capabilities = array();
@@ -115,20 +127,28 @@ function hsf_admin_screen() {
 				if (!wp_verify_nonce($_POST['hsf_save_settings'], 'hsf_save_settings')) {
 					echo ('<div id="message" class="error fade"><p><strong>Invalid nonce</strong></p></div>');
 				} else {
-					$hsf_roles = array();
+					$hsf_allowed_roles = array();
 					foreach($wp_roles->role_names as $role => $name) {
 						if (isset($_POST['role_' . $role]) && $_POST['role_' . $role]) {
-							$hsf_roles[] = $role;
+							$hsf_allowed_roles[] = $role;
 						}
 					}
-					update_option(HSF_ALLOWED_ROLES, $hsf_roles);
-					$hsf_capabilities = array();
+					update_option(HSF_ALLOWED_ROLES, $hsf_allowed_roles);
+					
+					$hsf_allowed_capabilities = array();
 					foreach ($all_capabilities as $capability => $roles) {
 						if (isset($_POST['capability_' . $capability]) && $_POST['capability_' . $capability]) {
-							$hsf_capabilities[] = $capability;
+							$hsf_allowed_capabilities[] = $capability;
 						}
 					}
-					update_option(HSF_ALLOWED_CAPABILITIES, $hsf_capabilities);
+					update_option(HSF_ALLOWED_CAPABILITIES, $hsf_allowed_capabilities);
+					
+					$hsf_allowed_ips = array();
+					if (isset($_POST['hsf_allowed_ips']) && $_POST['hsf_allowed_ips']) {
+						$hsf_allowed_ips = explode(',', $_POST['hsf_allowed_ips']);
+					}
+					update_option(HSF_ALLOWED_IPS, asort($hsf_allowed_ips));
+					
 					echo ('<div id="message" class="updated fade"><p><strong>' .  __('Options saved.') . '</strong></p></div>');
 				}
 				break;
@@ -141,14 +161,20 @@ function hsf_admin_screen() {
 		}
 		
 	}
+	if (count($hsf_allowed_ips)) {
+		echo ('<script language="javascript">var hsf_allowed_ips = new Array("' . implode('","', $hsf_allowed_ips) . '");</script>');
+	} else {
+		echo ('<script language="javascript">var hsf_allowed_ips = new Array();</script>');
+	}
 	?>
 	<div class="wrap">
 		<?php screen_icon(); ?>
 		<h2>Htaccess Secure Files Settings</h2>
 		
-		<h3>Select which roles and/or capabilities are required to view secured uploads</h3>
+		<h3>Any visitor who matches any of the below selected roles, capabilities, or IP addresses will be allowed to access secured files</h3>
 		<p>Other <a href="http://wordpress.org/extend/plugins/search.php?q=roles+capabilities&sort=" title="WordPress plugins repository">WordPress plugins</a> can be used to create end edit <a href="http://codex.wordpress.org/Roles_and_Capabilities" title="Roles and Capabilities">roles and capabilities</a>.</p>
 		<form method="post">
+			<input type="hidden" name="hsf_allowed_ips" id="hsf_allowed_ips" value="<?php echo(implode(',', $hsf_allowed_ips)); ?>" />
 			<?php 
 			wp_nonce_field('hsf_save_settings','hsf_save_settings');
 			?>
@@ -156,6 +182,7 @@ function hsf_admin_screen() {
 				<ul id="hsf_tabs">
 					<li id="hsf_tab_roles" class="hsf_tab_active">Roles</li>
 					<li id="hsf_tab_capabilities">Capabilities</li>
+					<li id="hsf_tab_ip4_addresses">IPv4 Addresses</li>
 					<!--<li id="hsf_tab_users">Users</li>-->
 				</ul>
 			</div>
@@ -173,9 +200,9 @@ function hsf_admin_screen() {
 						$tr_class = ( $tr_class == '' ? ' class="alternate"' : '' );
 						?>
 						<tr <?php echo($tr_class); ?>>
-							<th class="check-column" scope="row"><input name="role_<?php echo($role); ?>" type="checkbox" class="hsf_checkbox" value="on" <?php if (in_array($role, $hsf_roles)) { echo ('checked="checked"'); } ?> /></th>
+							<th class="check-column" scope="row"><input name="role_<?php echo($role); ?>" type="checkbox" class="hsf_checkbox" value="on" <?php if (in_array($role, $hsf_allowed_roles)) { echo ('checked="checked"'); } ?> /></th>
 							<td>
-								<div class="hsf_toggle hsf_role" id="hsf_toggle_<?php echo($role); ?>"><?php echo($name); ?> <span class="hsf_toggle_text">Click to toggle capability listing</span></div>
+								<div class="hsf_toggle hsf_role" id="hsf_toggle_<?php echo($role); ?>"><?php echo($name); ?> <span class="hsf_toggle_text">click to show/hide capability listing</span></div>
 								<div id="hsf_toggle_div_<?php echo($role); ?>" style="display:none;">
 									<ul class="hsf_capability_listing">
 										<li style="font-weight:bold; margin-left: 0;">Capabilities:</li>
@@ -208,17 +235,77 @@ function hsf_admin_screen() {
 						$tr_class = ( $tr_class == '' ? ' class="alternate"' : '' );
 						?>
 						<tr <?php echo($tr_class); ?>>
-							<th class="check-column" scope="row"><input name="capability_<?php echo($capability); ?>" type="checkbox" class="hsf_checkbox" <?php if (in_array($capability, $hsf_capabilities)) { echo ('checked="checked"'); } ?> /></th>
+							<th class="check-column" scope="row"><input name="capability_<?php echo($capability); ?>" type="checkbox" class="hsf_checkbox" <?php if (in_array($capability, $hsf_allowed_capabilities)) { echo ('checked="checked"'); } ?> /></th>
 							<td><strong><?php echo ($capability); ?></strong></td>
 							<td><?php echo(implode(', ', $roles)); ?></td>
 						</tr>
 					<?php } ?>
 				</tbody>
 			</table>
+			<table id="hsf_tab_content_ip4_addresses" class="hsf_tab_content widefat" style="display:none;">
+				<thead>
+					<tr>
+						<th colspan="2">Whitelisted IPv4 Addresses</th>
+					<tr>
+				<thead>
+				<tbody>
+					<?php
+					$tr_class = '';
+					foreach ($hsf_allowed_ips as $ip) {
+						$tr_class = ( $tr_class == '' ? ' class="alternate"' : '' );
+						echo ('<tr ' . $tr_class . ' id="hsf_ip_tr_' . str_replace('.', '_', $ip) . '">');
+						echo ('<td>' . $ip . '</td>');
+						echo ('<td class="hsf_button_cell"><input type="button" id="hsf_delete_ip_' . str_replace('.', '_', $ip) . '" class="button-secondary hsf_delete_ip" value="Delete" /></td>');
+						echo ('</tr>');
+					}
+					?>
+				</tbody>
+				<tfoot>
+					<tr>
+						<td id="hsf_add_ip_label"><strong>Add IPv4 Address:</strong></td>
+						<td>
+							<input type="text" maxlength="15" id="hsf_add_ip_text" />
+							<input type="button" id="hsf_add_ip_button" class="button-secondary" value="Add IP Address" />
+						</td>
+					</tr>
+				</tfoot>
+			</table>
+			<br />
 			<input type="submit" name="hsf_submit" value="Save Settings" class="button-primary" />
 		</form>
 	</div>
 	<?php
+}
+
+/**** Media manager ****/
+add_filter('manage_media_columns', 'hsf_manage_media_columns');
+function hsf_manage_media_columns($columns) {
+	// Create a global array of secured files so they do not have to be loaded one at a time by hsf_manage_media_custom_column
+	global $hsf_secured_attachment_ids, $wpdb;
+	$sql = "SELECT post_id FROM $wpdb->postmeta WHERE meta_key = '" . $wpdb->escape(HSF_POST_META_KEY) . "'";
+	if (!($hsf_secured_attachment_ids = $wpdb->get_col($sql))) {
+		$hsf_secured_attachment_ids = array();
+	}
+	// Add 'Secured' column to the media list table before the 'date' item
+	$new_columns = array();
+	foreach ($columns as $key => $value) {
+		if ($key == 'date') {
+			$new_columns['hsf_secured'] = 'Secured';
+		}
+		$new_columns[$key] = $value;
+	}
+	return $new_columns;
+}
+add_filter('manage_media_custom_column', 'hsf_manage_media_custom_column', 10, 2);
+function hsf_manage_media_custom_column($column_name, $attachment_id) {
+	if ($column_name == 'hsf_secured') {
+		global $hsf_secured_attachment_ids;
+		if (in_array($attachment_id, $hsf_secured_attachment_ids)) {
+			echo('Yes');
+		} else {
+			echo('No');
+		}
+	}
 }
 
 /**** Media upload/edit/delete ****/

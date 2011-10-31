@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: Htaccess Secure Files
-Version: 0.1
+Version: 0.2
 Plugin URI: http://isaacchapman.com/wordpress-plugins/htaccess-secure-files/
 Description: Allows securing media library uploaded files to be vieweable to only users with specified capabilities. A different <a href="http://wordpress.org/extend/plugins/search.php?q=roles+capabilities&sort=" title="WordPress plugins repository">WordPress plugin</a> will be needed if custom <a href="http://codex.wordpress.org/Roles_and_Capabilities" title="Roles and Capabilities">roles and capabilities</a> need to created. <strong>Requires Apache with mod_rewrite enabled!</strong> 
 Author: Isaac Chapman

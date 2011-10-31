@@ -5,7 +5,7 @@ Requires at least: 3.2.1
 Tested up to: 3.2.1
 Stable tag: 0.2
 
-Allows securing files in WP's media library to be only accessible to users with specific roles and/or capabilities.
+Allows securing files in WP's media library to be only accessible to users with specific roles, capabilities, or IP addresses.
 
 == Description ==
 

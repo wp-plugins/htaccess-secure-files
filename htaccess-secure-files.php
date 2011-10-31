@@ -25,8 +25,8 @@ Author URI: http://isaacchapman.com/
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-// If the existing settings are to be used and shouldn't be changed through the admin interface HSF_DISPLAY_ADMIN should be defined as false in the wp-config.php file. For example:
-// define('HSF_DISPLAY_ADMIN', false); 
+// If the existing settings are to be used and shouldn't be changed through the admin interface HSF_HIDE_ADMIN should be defined as false in the wp-config.php file. For example:
+// define('HSF_HIDE_ADMIN', true); 
 
 // The default roles and capabilities needed to access secured content
 define('HSF_DEFAULT_ALLOWED_ROLES', 'subscriber,contributor,author,editor,administrator');
@@ -87,7 +87,7 @@ function hsf_init() {
 
 /**** Admin screen ****/
 // Should the admin functionality be loaded?
-if (!defined('HSF_DISPLAY_ADMIN') || HSF_DISPLAY_ADMIN == true) {
+if (!defined('HSF_HIDE_ADMIN') || HSF_HIDE_ADMIN != true) {
 	add_action('admin_menu', 'hsf_admin_menu');
 }
 function hsf_admin_menu() {

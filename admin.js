@@ -15,20 +15,8 @@ jQuery(document).ready(function() {
 		}
 	});
 	// Handle clicking on tabs
-	jQuery('#hsf_tabs li').click(function() {
-		if (!jQuery(this).hasClass('hsf_tab_active')) {
-			var tab_id = jQuery(this).attr('id').substr(8);
-			jQuery('#hsf_tabs li').each(function() {
-				if (jQuery(this).hasClass('hsf_tab_active')) {
-					var id = jQuery(this).attr('id').substr(8);
-					jQuery('#hsf_tab_content_' + id).hide();
-					jQuery(this).removeClass('hsf_tab_active');
-				}
-			});
-			jQuery('#hsf_tab_content_' + tab_id).show(150);
-			jQuery('#hsf_tab_' + tab_id).addClass('hsf_tab_active');
-			window.location.hash = tab_id;
-		}
+	jQuery('.hsf_tabs li').click(function() {
+		window.location.hash = jQuery(this).attr('id').substr(8);
 	});
 	// Deleteing an IP address
 	jQuery('.hsf_delete_ip').live('click', function() {
@@ -67,18 +55,27 @@ jQuery(document).ready(function() {
 		jQuery('#hsf_tab_content_ip4_addresses tbody').append('<tr id="hsf_ip_tr_' + ip_w_underscores + '" ' + tr_class + '><td>' + ip + '</td><td class="hsf_button_cell"><input type="button" value="Delete" class="button-secondary hsf_delete_ip" id="hsf_delete_ip_' + ip_w_underscores + '"></td></tr>');
 		jQuery('#hsf_add_ip_text').val('');
 	});
+	jQuery('.hsf_dr_custom_url').change(function() {
+
+	});
 });
 
 function hsf_hash_change() {
-	// Display the location.hash specific content
 	if (location.hash && location.hash.length > 1 && jQuery('#hsf_tab_' + location.hash.substr(1)).length) {
-		var active_id = location.hash.substr(1);
-		jQuery('#hsf_tabs li').each(function() {
+		hsf_show_tab(location.hash.substr(1));
+	}
+}
+function hsf_show_tab(tab_id) {
+	var tab = jQuery('#hsf_tab_' + tab_id);
+	if (!tab.length) { return; }						// tab not found
+	if (tab.hasClass('hsf_tab_active')) { return; }		// tab already active
+	tab.siblings().each(function() {
+		if (jQuery(this).hasClass('hsf_tab_active')) {
 			var id = jQuery(this).attr('id').substr(8);
 			jQuery('#hsf_tab_content_' + id).hide();
 			jQuery(this).removeClass('hsf_tab_active');
-		});
-		jQuery('#hsf_tab_content_' + active_id).show();
-		jQuery('#hsf_tab_' + active_id).addClass('hsf_tab_active');
-	}
+		}
+	});
+	jQuery('#hsf_tab_content_' + tab_id).show(150);
+	tab.addClass('hsf_tab_active');
 }

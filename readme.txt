@@ -3,7 +3,7 @@ Contributors: isaacchapman
 Tags: secure, htaccess, media
 Requires at least: 3.2.1
 Tested up to: 3.2.1
-Stable tag: 0.2
+Stable tag: 0.3
 
 Allows securing files in WP's media library to be only accessible to users with specific roles, capabilities, or IP addresses.
 
@@ -23,10 +23,13 @@ This plugin works by creating a .htaccess files in the directory of each secured
 
 1. Unzip the zip archive and upload the htaccess-secure-files directory to your /wp-content/plugins/ directory.
 2. Activate the plugin through the 'Plugins' menu in WordPress.
-3. Select which roles, capabilities, and IP addresses will be allowed to view and download secure files on the 'Settings' -> 'Secure Files' admin screen.
+3. On the 'Settings' -> 'Secure Files' admin screen select which roles, capabilities, and IP addresses will be allowed to access secure files and what the server response should be for those denied access.
 4. To secure individual files edit the file on the 'Media' admin screen and change the 'Secured File' setting to 'Yes'.
 
 == Changelog ==
+
+= 0.3 =
+* "Denied access response" is now customizable: WordPress login, 403 Forbidden, 404 Not Found, or custom redirect.
 
 = 0.2 =
 * Added "Secure" column to media manager list table

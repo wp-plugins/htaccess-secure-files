@@ -21,15 +21,15 @@ if ($wp_load == '') {
 require($wp_load);
 
 // Ensure the plugin is initialized properly
-global $hsf_allowed_roles, $hsf_allowed_capabilities, $hsf_allowed_ips, $current_user;
-if (!isset($current_user) || !isset($hsf_allowed_roles) || !isset($hsf_allowed_capabilities) || !isset($hsf_allowed_ips)) {
+global $hsf_allowed_roles, $hsf_allowed_capabilities, $hsf_allowed_ips, $current_user, $hsf_denied_response;
+if (!isset($current_user) || !isset($hsf_allowed_roles) || !isset($hsf_allowed_capabilities) || !isset($hsf_allowed_ips) || !isset($hsf_denied_response)) {
 	header('Status: 500 Internal Server Error', true, 500);
 	echo ('Error 500: Htaccess Secure Files plugin error (possibly deactivated)');
 	hsf_error('configuration error - missing global variables');
 	exit();
 }
 
-if (!is_array($hsf_allowed_roles) || !is_array($hsf_allowed_capabilities) || !is_array($hsf_allowed_ips) || !is_object($current_user)) {
+if (!is_array($hsf_allowed_roles) || !is_array($hsf_allowed_capabilities) || !is_array($hsf_allowed_ips) || !is_object($current_user) || !is_array($hsf_denied_response)) {
 	header('Status: 500 Internal Server Error', true, 500);
 	echo ('Error 500: Htaccess Secure Files plugin configuration error');
 	hsf_error('configuration error');
@@ -60,8 +60,50 @@ if (!$can_view && count($hsf_allowed_capabilities) && isset($current_user->allca
 }
 
 if (!$can_view) {
-	header('Status: 403 Forbidden', true, 403);
-	echo ('Error 403: Access forbidden');
+	$visitor = 'anon';
+	if (isset($current_user) && isset($current_user->ID) && ($current_user->ID)) {
+		$visitor = 'user';	
+	}
+	if (!isset($hsf_denied_response[$visitor])) {
+		header('Status: 403 Forbidden', true, 403);
+		echo ('Error 403: Access forbidden - access denial action invalid');
+		exit();	
+	}
+	switch ($hsf_denied_response[$visitor]) {
+		case 'login':
+			header('Location: ' . wp_login_url($_SERVER['REQUEST_URI']), true, 302);
+			break;
+		case 'custom':
+			if (!isset($hsf_denied_response[$visitor . '_custom_url']) || !strlen($hsf_denied_response[$visitor . '_custom_url'])) {
+				header('Status: 500 Internal Server Error', true, 500);
+				echo ('Error 500: Htaccess Secure Files - ' . $visitor . '_custom_url redirection not set');
+				hsf_error('configuration error');
+				exit();	
+			}
+			$login_url = $hsf_denied_response[$visitor . '_custom_url'];
+			if (strlen($hsf_denied_response[$visitor . '_custom_url']) >= 10 && false !== strpos($hsf_denied_response[$visitor . '_custom_url'], '%file_url%')) {
+				$file_url = 'http';
+				if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') {
+					$file_url .= 's';	
+				}
+				$file_url .= '://' . $_SERVER['SERVER_NAME'] . $_SERVER['REQUEST_URI'];
+				$login_url = str_replace('%file_url%', urlencode($file_url), $login_url);
+			}
+			header('Location: ' . $login_url, true, 302);
+			break;
+		case '403':
+			header('Status: 403 Forbidden', true, 403);
+			echo ('Error 403: Access forbidden');
+			break;
+		case '404':
+			header('Status: 404 Not Found', true, 404);
+			echo ('Error 404: Not Found');
+			break;
+		default:
+			header('Status: 403 Forbidden', true, 403);
+			echo ('Error 403: Access forbidden - access denial action not set');
+			break;
+	}
 	exit();
 }
 

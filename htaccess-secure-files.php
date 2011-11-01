@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: Htaccess Secure Files
-Version: 0.2
+Version: 0.3
 Plugin URI: http://isaacchapman.com/wordpress-plugins/htaccess-secure-files/
 Description: Allows securing media library uploaded files to be vieweable to only users with specified capabilities. A different <a href="http://wordpress.org/extend/plugins/search.php?q=roles+capabilities&sort=" title="WordPress plugins repository">WordPress plugin</a> will be needed if custom <a href="http://codex.wordpress.org/Roles_and_Capabilities" title="Roles and Capabilities">roles and capabilities</a> need to created. <strong>Requires Apache with mod_rewrite enabled!</strong> 
 Author: Isaac Chapman
@@ -25,6 +25,8 @@ Author URI: http://isaacchapman.com/
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+define('HSF_VERSION', '0.3.0');
+
 // If the existing settings are to be used and shouldn't be changed through the admin interface HSF_HIDE_ADMIN should be defined as false in the wp-config.php file. For example:
 // define('HSF_HIDE_ADMIN', true); 
 
@@ -32,6 +34,7 @@ Author URI: http://isaacchapman.com/
 define('HSF_DEFAULT_ALLOWED_ROLES', 'subscriber,contributor,author,editor,administrator');
 define('HSF_DEFAULT_ALLOWED_CAPABILITIES', '');
 define('HSF_DEFAULT_ALLOWED_IP', '');
+define('HSF_DEFAULT_DENIED_RESPONSE', 'login');
 
 // .htaccess file delimiters (DO NOT USE MULTIPLE ADJACENT SPACE CHARACTERS IF THESE ARE MODIFIED)
 define('HSF_HTACCESS_NOTICE','#### DO NOT EDIT BELOW (Htaccess Secure Files plugin created content) ####');
@@ -42,6 +45,7 @@ define('HSF_HTACCESS_ENTRIES_END', '#### End of Htaccess Secure Files plugin cre
 define('HSF_ALLOWED_ROLES', 'hsf_allowed_roles');
 define('HSF_ALLOWED_CAPABILITIES', 'hsf_allowed_capabilities');
 define('HSF_ALLOWED_IPS', 'hsf_allowed_ips');
+define('HSF_DENIED_RESPONSE', 'hsf_denied_response');
 define('HSF_POST_META_KEY', '_hsf_secured');
 define('HSF_SECURED_LABEL', 'Secured File');
 define('HSF_REQUIRED_ADMIN_CAPABILITY', 'manage_options');
@@ -70,7 +74,8 @@ function hsf_activate() {
 /**** Plugin init ****/
 add_action('init', 'hsf_init');
 function hsf_init() {
-	global $hsf_allowed_roles, $hsf_allowed_capabilities, $hsf_allowed_ips;
+	// Load/set defaults (these need to be global so they can be used by dl.php)
+	global $hsf_allowed_roles, $hsf_allowed_capabilities, $hsf_allowed_ips, $hsf_denied_response;
 	if (!($hsf_allowed_roles = get_option(HSF_ALLOWED_ROLES))) {
 		$hsf_allowed_roles = explode(',', HSF_DEFAULT_ALLOWED_ROLES);
 		if(count($hsf_allowed_roles) == 1 && $hsf_allowed_roles[0] == '') { $hsf_allowed_roles = array(); }
@@ -83,7 +88,12 @@ function hsf_init() {
 		$hsf_allowed_ips = explode(',', HSF_DEFAULT_ALLOWED_IP);	
 		if(count($hsf_allowed_ips) == 1 && $hsf_allowed_ips[0] == '') { $hsf_allowed_ips = array(); }
 	}
+	if (!($hsf_denied_response = get_option(HSF_DENIED_RESPONSE)) || !is_array($hsf_denied_response) || !isset($hsf_denied_response['user']) || !isset($hsf_denied_response['anon'])) {
+		$hsf_denied_response = array('user' => HSF_DEFAULT_DENIED_RESPONSE, 'anon' => HSF_DEFAULT_DENIED_RESPONSE);
+	}
 }
+
+
 
 /**** Admin screen ****/
 // Should the admin functionality be loaded?
@@ -91,13 +101,15 @@ if (!defined('HSF_HIDE_ADMIN') || HSF_HIDE_ADMIN != true) {
 	add_action('admin_menu', 'hsf_admin_menu');
 }
 function hsf_admin_menu() {
-	add_submenu_page('options-general.php', 'Secure Files', 'Secure Files', HSF_REQUIRED_ADMIN_CAPABILITY, 'hsf-settings', 'hsf_admin_screen');
+	add_submenu_page('options-general.php', 'Secure Files', 'Secure Files', HSF_REQUIRED_ADMIN_CAPABILITY, plugin_basename(__FILE__), 'hsf_admin_screen');
 }
 
 add_action('admin_head', 'hsf_admin_head');
 function hsf_admin_head() {
-	echo ('<link rel="stylesheet" type="text/css" href="' . WP_PLUGIN_URL . '/' . dirname(plugin_basename(__FILE__)) . '/admin.css" />');
-	echo ('<script language="javascript" src="' . WP_PLUGIN_URL . '/' . dirname(plugin_basename(__FILE__)) . '/admin.js"></script>');
+	if (basename($_SERVER['SCRIPT_FILENAME']) == 'options-general.php' && isset($_GET['page']) && $_GET['page'] == plugin_basename(__FILE__)) {
+		echo ('<link rel="stylesheet" type="text/css" href="' . WP_PLUGIN_URL . '/' . dirname(plugin_basename(__FILE__)) . '/admin.css?ver=' . HSF_VERSION . '" />');
+		echo ('<script language="javascript" src="' . WP_PLUGIN_URL . '/' . dirname(plugin_basename(__FILE__)) . '/admin.js?ver=' . HSF_VERSION . '"></script>');
+	}
 }
 
 function hsf_admin_screen() {
@@ -105,7 +117,7 @@ function hsf_admin_screen() {
 		wp_die( __('You do not have sufficient permissions to access this page.') );
 	}
 	
-	global $hsf_allowed_roles, $hsf_allowed_capabilities, $hsf_allowed_ips, $wp_roles;
+	global $hsf_allowed_roles, $hsf_allowed_capabilities, $hsf_allowed_ips, $wp_roles, $hsf_denied_response;
 	
 	// Create array of capabilities
 	$all_capabilities = array();
@@ -127,6 +139,7 @@ function hsf_admin_screen() {
 				if (!wp_verify_nonce($_POST['hsf_save_settings'], 'hsf_save_settings')) {
 					echo ('<div id="message" class="error fade"><p><strong>Invalid nonce</strong></p></div>');
 				} else {
+					// Whitelisted roles
 					$hsf_allowed_roles = array();
 					foreach($wp_roles->role_names as $role => $name) {
 						if (isset($_POST['role_' . $role]) && $_POST['role_' . $role]) {
@@ -135,6 +148,7 @@ function hsf_admin_screen() {
 					}
 					update_option(HSF_ALLOWED_ROLES, $hsf_allowed_roles);
 					
+					// Whitelisted capabilities
 					$hsf_allowed_capabilities = array();
 					foreach ($all_capabilities as $capability => $roles) {
 						if (isset($_POST['capability_' . $capability]) && $_POST['capability_' . $capability]) {
@@ -143,12 +157,26 @@ function hsf_admin_screen() {
 					}
 					update_option(HSF_ALLOWED_CAPABILITIES, $hsf_allowed_capabilities);
 					
+					// Whitelisted ip addresses
 					$hsf_allowed_ips = array();
 					if (isset($_POST['hsf_allowed_ips']) && $_POST['hsf_allowed_ips']) {
 						$hsf_allowed_ips = explode(',', $_POST['hsf_allowed_ips']);
 					}
 					update_option(HSF_ALLOWED_IPS, asort($hsf_allowed_ips));
+
+					// Denied access responses
+					foreach ($hsf_denied_response as $key => $value) {
+						if (isset($_POST['hsf_dr_' . $key]) && trim($_POST['hsf_dr_' . $key])) {
+							$value = trim($_POST['hsf_dr_' . $key]);
+							$hsf_denied_response[$key] = $value;
+							if ($value == 'custom' && isset($_POST['hsf_dr_' . $key . '_custom_url']) && trim($_POST['hsf_dr_' . $key . '_custom_url'])) {
+								$hsf_denied_response[$key . '_custom_url'] = trim($_POST['hsf_dr_' . $key . '_custom_url']);
+							}
+						}
+					}
+					update_option(HSF_DENIED_RESPONSE, $hsf_denied_response);
 					
+					// And we are done...
 					echo ('<div id="message" class="updated fade"><p><strong>' .  __('Options saved.') . '</strong></p></div>');
 				}
 				break;
@@ -178,12 +206,11 @@ function hsf_admin_screen() {
 			<?php 
 			wp_nonce_field('hsf_save_settings','hsf_save_settings');
 			?>
-			<div id="hsf_tab_wrap">
-				<ul id="hsf_tabs">
+			<div id="hsf_access_tabs_wrap">
+				<ul class="hsf_tabs" id="hsf_access_tabs">
 					<li id="hsf_tab_roles" class="hsf_tab_active">Roles</li>
 					<li id="hsf_tab_capabilities">Capabilities</li>
 					<li id="hsf_tab_ip4_addresses">IPv4 Addresses</li>
-					<!--<li id="hsf_tab_users">Users</li>-->
 				</ul>
 			</div>
 			<table id="hsf_tab_content_roles" class="hsf_tab_content widefat">
@@ -269,6 +296,61 @@ function hsf_admin_screen() {
 						</td>
 					</tr>
 				</tfoot>
+			</table>
+			<br />
+			<h3>Denied access response</h3>
+			<p>What should be the response for non-authorized attempts to access secured files?</p>
+			<div>
+				<ul class="hsf_tabs" id="hsf_dr_tabs">
+					<li id="hsf_tab_anon" class="hsf_tab_active">Anonymous visitors</li>
+					<li id="hsf_tab_user">Logged in users</li>
+				</ul>
+			</div>
+			<table id="hsf_tab_content_anon" class="hsf_tab_content form-table">
+				<tbody>
+					<tr>
+						<th><input type="radio" class="tog" value="login" name="hsf_dr_anon" id="hsf_dr_anon_login" <?php if ($hsf_denied_response['anon'] == 'login') { echo('checked="checked"'); } ?> /> <label for="hsf_dr_anon_login">Redirect to login</label></th>
+						<td><code><?php echo(wp_login_url()); ?>?redirect_to=%file_url%</code></td>
+					</tr>
+					<tr>
+						<th><input type="radio" class="tog" value="403" name="hsf_dr_anon" id="hsf_dr_anon_403" <?php if ($hsf_denied_response['anon'] == '403') { echo('checked="checked"'); } ?> /> <label for="hsf_dr_anon_403">Forbidden error</label></th>
+						<td><a href="http://en.wikipedia.org/wiki/HTTP_403" title="HTTP 403 Status Code">Status: 403 Forbidden</a></td>
+					</tr>
+					<tr>
+						<th><input type="radio" class="tog" value="404" name="hsf_dr_anon" id="hsf_dr_anon_404" <?php if ($hsf_denied_response['anon'] == '404') { echo('checked="checked"'); } ?> /> <label for="hsf_dr_anon_404">Not found error</label></th>
+						<td><a href="http://en.wikipedia.org/wiki/HTTP_404" title="HTTP 404 Status Code">Status: 404 Not Found</a></td>
+					</tr>
+					<tr>
+						<th><input type="radio" class="tog" value="custom" name="hsf_dr_anon" id="hsf_dr_anon_custom" <?php if ($hsf_denied_response['anon'] == 'custom') { echo('checked="checked"'); } ?> /> <label for="hsf_dr_anon_custom">Custom redirect</label></th>
+						<td>
+							<input type="text" class="regular-text code hsf_dr_custom_url" value="<?php if(isset($hsf_denied_response['anon_custom_url'])) { echo($hsf_denied_response['anon_custom_url']); } ?>" id="hsf_dr_anon_custom_url" name="hsf_dr_anon_custom_url">
+							<code>%file_url%</code> can be used in the redirect.
+						</td>
+					</tr>
+				</tbody>
+			</table>
+			<table id="hsf_tab_content_user" class="hsf_tab_content form-table" style="display:none;">
+				<tbody>
+					<tr>
+						<th><input type="radio" class="tog" value="login" name="hsf_dr_user" id="hsf_dr_user_login" <?php if ($hsf_denied_response['user'] == 'login') { echo('checked="checked"'); } ?> /> <label for="hsf_dr_user_login">Redirect to login</label></th>
+						<td><code><?php echo(wp_login_url()); ?>?redirect_to=%file_url%</code></td>
+					</tr>
+					<tr>
+						<th><input type="radio" class="tog" value="403" name="hsf_dr_user" id="hsf_dr_user_403" <?php if ($hsf_denied_response['user'] == '403') { echo('checked="checked"'); } ?> /> <label for="hsf_dr_user_403">Forbidden error</label></th>
+						<td><a href="http://en.wikipedia.org/wiki/HTTP_403" title="HTTP 403 Status Code">Status: 403 Forbidden</a></td>
+					</tr>
+					<tr>
+						<th><input type="radio" class="tog" value="404" name="hsf_dr_user" id="hsf_dr_user_404" <?php if ($hsf_denied_response['user'] == '404') { echo('checked="checked"'); } ?> /> <label for="hsf_dr_user_404">Not found error</label></th>
+						<td><a href="http://en.wikipedia.org/wiki/HTTP_404" title="HTTP 404 Status Code">Status: 404 Not Found</a></td>
+					</tr>
+					<tr>
+						<th><input type="radio" class="tog" value="custom" name="hsf_dr_user" id="hsf_dr_user_custom" <?php if ($hsf_denied_response['user'] == 'custom') { echo('checked="checked"'); } ?> /> <label for="hsf_dr_user_custom">Custom redirect</label></th>
+						<td>
+							<input type="text" class="regular-text code hsf_dr_custom_url" value="<?php if(isset($hsf_denied_response['user_custom_url'])) { echo($hsf_denied_response['user_custom_url']); } ?>" id="hsf_dr_user_custom_url" name="hsf_dr_user_custom_url">
+							<code>%file_url%</code> can be used in the redirect.
+						</td>
+					</tr>
+				</tbody>
 			</table>
 			<br />
 			<input type="submit" name="hsf_submit" value="Save Settings" class="button-primary" />

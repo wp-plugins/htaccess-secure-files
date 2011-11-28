@@ -117,15 +117,34 @@ if (!file_exists($file)) {
 
 // Set the headers
 $filetype = wp_check_filetype($_SERVER['REQUEST_URI']);
+$content_type = $filetype['type'];
+if (!$content_type) {
+	// The content type could not be set using WordPress's built-in (or plugin edited) MIME types, get from PHP if available
+	if (function_exists('finfo_open')) {
+		// Fileinfo PECL extension installed
+		$finfo = finfo_open(FILEINFO_MIME_TYPE);
+		$mime_type = finfo_file($finfo, $file);
+		finfo_close($finfo);
+		if ($mime_type && is_string($mime_type) && !empty($mime_type)) {
+			$content_type = $mime_type;	
+		}
+	}
+	if (!$content_type && function_exists('mime_content_type')) {
+		// mime_content_type is deprecated
+		$mime_type = mime_content_type($file);
+		if ($mime_type && is_string($mime_type) && !empty($mime_type)) {
+			$content_type = $mime_type;	
+		}
+	}
+	if (!$content_type) {
+		$content_type = 'application/octet-stream';	
+	}
+}
 $filestat = stat($file);
 header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $filestat['mtime']) . ' GMT');
 header('Etag: ' . sprintf('"%x-%x-%s"', $filestat['ino'], $filestat['size'], base_convert(str_pad($filestat['mtime'], 16, '0'), 10, 16)));
 header('Content-Length: ' . $filestat['size']);
-if (!$filetype || !is_array($filetype) || !isset($filetype['type']) || !$filetype['type']) {
-	header('Content-Type: application/octet-stream');
-} else {
-	header('Content-Type: '	. $filetype['type']);
-}
+header('Content-Type: ' . $content_type);
 
 // Send the file
 ob_clean();

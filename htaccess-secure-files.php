@@ -25,7 +25,7 @@ Author URI: http://isaacchapman.com/
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-define('HSF_VERSION', '0.3.0');
+define('HSF_VERSION', '0.4.0');
 
 // If the existing settings are to be used and shouldn't be changed through the admin interface HSF_HIDE_ADMIN should be defined as false in the wp-config.php file. For example:
 // define('HSF_HIDE_ADMIN', true); 

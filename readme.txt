@@ -2,7 +2,7 @@
 Contributors: isaacchapman
 Tags: secure, htaccess, media
 Requires at least: 3.2.1
-Tested up to: 3.2.1
+Tested up to: 3.3.1
 Stable tag: 0.4
 
 Allows securing files in WP's media library to be only accessible to users with specific roles, capabilities, or IP addresses.

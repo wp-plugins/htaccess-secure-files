@@ -1,0 +1,67 @@
+.hsf_tabs {
+	list-style: none;
+	margin: 0 0 0 10px;
+}
+.hsf_tabs li {
+	display: inline;
+	font-weight: bold;
+	border-radius: 8px 8px 0 0;
+	padding: 4px 8px 2px;
+	margin: 0 2px 0 0;
+	cursor: pointer;
+    white-space: nowrap;
+	color: #21759B;
+	background-color: #EAF2FA;
+	border: 1px solid #DFDFDF;
+}
+.hsf_tabs li.hsf_tab_active {
+	color: #EAF2FA;
+	background-color: #21759B;
+	border-left: 1px solid #21759B;
+	border-top: 1px solid #21759B;
+	border-right: 1px solid #21759B;
+	border-bottom: 1px solid #21759B;
+}
+.hsf_tab_content thead th { white-space:nowrap; }
+.hsf_tab_content .check-column { text-align: center; }
+.hsf_tab_content tbody td { padding-top: 7px; }
+.hsf_tab_content tbody td.hsf_button_cell { padding-top: 2px; }
+.hsf_tab_content td#hsf_add_ip_label { 
+	vertical-align:middle;
+	white-space: nowrap;
+	width: 10em;
+}
+
+.hsf_toggle {
+	color: #21759B;	
+	font-size: 13px !important;
+    font-weight: bold;
+	cursor: pointer;
+}
+
+.hsf_toggle_text {
+	font-weight: normal;
+	font-size: 12px !important;
+}
+.hsf_capability_listing {
+	margin: 5px;	
+}
+.hsf_capability_listing li {
+	margin-bottom: 4px;
+	margin-left: 5px;
+}
+
+.hsf_tab_content {
+    background-color: #F9F9F9;
+    border-color: #DFDFDF;
+}
+
+.hsf_tab_content {
+    border-radius: 3px 3px 3px 3px;
+    border-spacing: 0;
+    border-style: solid;
+    border-width: 1px;
+    margin: 0;
+}
+/* Media management list table */
+.fixed .column-hsf_secured { width: 10%; }

@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: Htaccess Secure Files
-Version: 0.3
+Version: 0.5
 Plugin URI: http://isaacchapman.com/wordpress-plugins/htaccess-secure-files/
 Description: Allows securing media library uploaded files to be vieweable to only users with specified capabilities. A different <a href="http://wordpress.org/extend/plugins/search.php?q=roles+capabilities&sort=" title="WordPress plugins repository">WordPress plugin</a> will be needed if custom <a href="http://codex.wordpress.org/Roles_and_Capabilities" title="Roles and Capabilities">roles and capabilities</a> need to created. <strong>Requires Apache with mod_rewrite enabled!</strong> 
 Author: Isaac Chapman
@@ -25,7 +25,7 @@ Author URI: http://isaacchapman.com/
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-define('HSF_VERSION', '0.4.0');
+define('HSF_VERSION', '0.5.0');
 
 // If the existing settings are to be used and shouldn't be changed through the admin interface HSF_HIDE_ADMIN should be defined as false in the wp-config.php file. For example:
 // define('HSF_HIDE_ADMIN', true); 
@@ -601,12 +601,17 @@ function hsf_append_htaccess($htaccess_file, $files) {
 		return false;
 	}
 	
+//	$hsf_home_root = hsf_get_home_root();
+		
 	// Write the initial ruleset
 	fwrite($handle, HSF_HTACCESS_NOTICE . "\n");
 	fwrite($handle, "RewriteEngine On\n");
+//	fwrite($handle, "RewriteBase " . $hsf_home_root . "\n");
+//	fwrite($handle, "# Skip requests for index.php\n");
+//	fwrite($handle, "RewriteRule ^index\.php$ - [L]\n");
 	fwrite($handle, "# For files that do not exist use WordPress' root index.php\n");
 	fwrite($handle, "RewriteCond %{SCRIPT_FILENAME} !-f\n");
-	fwrite($handle, "RewriteRule . " . hsf_get_home_root() . "index.php [L]\n");
+	fwrite($handle, "RewriteRule . " . $hsf_home_root . "index.php [L]\n");
 	fwrite($handle, "# For files that do exist see if they are secured\n");
 	fwrite($handle, "RewriteCond %{SCRIPT_FILENAME} -f\n");
 	fwrite($handle, HSF_HTACCESS_ENTRIES_START . "\n");
@@ -618,26 +623,25 @@ function hsf_append_htaccess($htaccess_file, $files) {
 }
 
 /**** File/path lookup functions ****/
-function hsf_get_dl_file() {
-	global $hsf_dl_file;
-	if (isset($hsf_dl_file) && $hsf_dl_file) { return $hsf_dl_file; }
-	
-	$hsf_dl_file = substr(plugin_dir_path(__FILE__), strlen(ABSPATH) - 1) . 'dl.php';
-	return $hsf_dl_file;
-}
-
 function hsf_get_home_root() {
 	global $hsf_home_root;
 	if (isset($hsf_home_root) && $hsf_home_root) { return $hsf_home_root; }
 	
-	// Get the location of the root index file (from function mod_rewrite_rules)
-	$home_root = parse_url(home_url());
-	if ( isset( $home_root['path'] ) ) {
-		$hsf_home_root = trailingslashit($home_root['path']);
+	$hsf_home_root = parse_url(get_option('siteurl'));
+	if ( isset( $hsf_home_root['path'] ) ) {
+		$hsf_home_root = trailingslashit($hsf_home_root['path']);
 	} else {
 		$hsf_home_root = '/';
 	}
 	return $hsf_home_root;
+}
+
+
+function hsf_get_dl_file() {
+	global $hsf_dl_file;
+	if (isset($hsf_dl_file) && $hsf_dl_file) { return $hsf_dl_file; }
+	$hsf_dl_file = substr(plugin_dir_path(__FILE__), strlen(ABSPATH) - strlen(hsf_get_home_root())) . 'dl.php';
+	return $hsf_dl_file;
 }
 
 function hsf_get_related_files($post_id) {

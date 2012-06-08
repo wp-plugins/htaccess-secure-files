@@ -2,8 +2,8 @@
 Contributors: isaacchapman
 Tags: secure, htaccess, media
 Requires at least: 3.2.1
-Tested up to: 3.3.1
-Stable tag: 0.4
+Tested up to: 3.3.2
+Stable tag: 0.5
 
 Allows securing files in WP's media library to be only accessible to users with specific roles, capabilities, or IP addresses.
 
@@ -27,6 +27,9 @@ This plugin works by creating a .htaccess files in the directory of each secured
 4. To secure individual files edit the file on the 'Media' admin screen and change the 'Secured File' setting to 'Yes'.
 
 == Changelog ==
+
+= 0.5 =
+* Adding smarter detection when WordPress is installed in a sub-directory of a site.
 
 = 0.4 =
 * MIME/Content-type detection routine expanded (in order of priority): 1) Use WordPress's built-in (or plugin modified) MIME types. 2) Use Fileinfo PECL extension if installed. 3) Check with mime_content_type (deprecated). 4) Fallback to 'application/octet-stream'.

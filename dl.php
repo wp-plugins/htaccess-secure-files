@@ -108,7 +108,7 @@ if (!$can_view) {
 }
 
 // Check if the file is there
-$file = ABSPATH . substr($_SERVER['REQUEST_URI'], 1);
+$file = substr(ABSPATH, 0, strlen(ABSPATH) - strlen(hsf_get_home_root())) . $_SERVER['REQUEST_URI'];
 if (!file_exists($file)) {
 	header('Status: 404 Not Found', true, 404);
 	echo ('Error 404: Resource not found');
@@ -140,6 +140,7 @@ if (!$content_type) {
 		$content_type = 'application/octet-stream';	
 	}
 }
+
 $filestat = stat($file);
 header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $filestat['mtime']) . ' GMT');
 header('Etag: ' . sprintf('"%x-%x-%s"', $filestat['ino'], $filestat['size'], base_convert(str_pad($filestat['mtime'], 16, '0'), 10, 16)));
